@@ -1,60 +1,59 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Apr 20 16:24:55 2022
-
-@author: User
-"""
-
 import nidaqmx
 import numpy as np
 from nidaqmx.constants import AcquisitionType
 import nidaqmx.stream_writers
 from nidaqmx.errors import DaqError
 
-def counter_do(data, wait, high,ctr=0,port=0,line='0:7'):
+def counter_do(data, delays, initial_delay=0.001, ctr=0,port=0,line='0:7', rate=1000000):
     
-    #Running prechecks.
+    # prechecks to ensure lengths are okay
+    if len(data) != len(delays):
+        raise Exception('data length does not match lengths provided!')
     
+    # modifying delays
     
-    #Turning low (wait) and high times into numpy arrays.
-    testwait=np.array(wait)
+    data=np.array(data,dtype=np.uint8)
+    
+    low, high = uniform_to_lowhigh(delays)
+    low = [initial_delay] + low
+    low = low[:-1]
+
+    testlow=np.array(low)
     testhigh=np.array(high)
     
+    # creating tasks for counter and output channels
     counter=nidaqmx.Task()
     counter.co_channels.add_co_pulse_chan_time("Dev1/ctr"+str(ctr))
     
     output = nidaqmx.Task()
     output.do_channels.add_do_chan("Dev1/port"+str(port)+"/line"+str(line))
     
+    # setting up timing for counter and DO channels
     counter.timing.cfg_implicit_timing(
-        samps_per_chan=len(wait),
+        samps_per_chan=len(low),
         sample_mode=AcquisitionType.FINITE
     )
     
-    do_samples=len(wait)
-    
     output.timing.cfg_samp_clk_timing(
-        rate = 100000,
+        rate = rate,
         source = 'Ctr0InternalOutput',
         sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
-        samps_per_chan=do_samples
+        samps_per_chan=len(low)
     )
 
+    # output generation attempt
     try:
-
         sw=nidaqmx.stream_writers.CounterWriter(counter.out_stream)
-        sw.write_many_sample_pulse_time(testhigh,testwait)
+        sw.write_many_sample_pulse_time(testhigh,testlow)
         
         streamwriter = nidaqmx.stream_writers.DigitalSingleChannelWriter(output.out_stream)
         streamwriter.write_many_sample_port_byte(data)
         
-        
         counter.start()
         output.start()
-        
-        
-        output.wait_until_done(timeout=sum(wait)+sum(high))
-        counter.wait_until_done(timeout=sum(wait)+sum(high))
+          
+        output.wait_until_done(timeout=sum(low)+sum(high))
+        counter.wait_until_done(timeout=sum(low)+sum(high))
         
         output.stop()
         output.close()
@@ -81,4 +80,3 @@ def uniform_to_lowhigh(arr):
 def delay_to_lowhigh(delay, samps):
     vals=[delay/2]*samps
     return vals, vals
-
