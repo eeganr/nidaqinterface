@@ -10,7 +10,10 @@ class Counter:
         self.bindings = bindings
     
     def run(self, command, port=0):
-        # command in format ['Camera+AOM','0.3','Counter+Camera','0.2']
+        '''
+            Runs the digital output given a command.
+            Command in format ['Camera+AOM','0.3','Counter+Camera','0.2'] 
+        '''
         if len(command) % 2 != 0:
             raise Exception('Something is wrong! You should provide a time delta for each state.')
         states = []
@@ -35,11 +38,38 @@ class Counter:
             integer = int("".join(str(i) for i in binary),2)
             states_translated.append(integer)
         
-        #Running program
+        # Running program
         self.counter_do(states_translated, times, port=port)
 
-    def counter_do(self, data, delays, ctr=0, port=0, line='0:7', rate=1000000, initial_delay=0.001):
+    def run_from_csv(self, name, port=0):
+        '''
+            Runs a digital output program from a csv file given as input. See readme or example csv.
+        '''
+        # Importing csv as pandas dataframe.
+        try:
+            import pandas as pd
+            df = pd.read_csv(name, usecols=[0, 1, 2, 3, 4, 5, 6, 7, 8], skiprows=[1])
+        except:
+            raise Exception('file unreachable!')
+           
+        # Parsing and translating states and times
+        hold_times = list(map(float,[i[0] for i in df.iloc[:, [8]].to_numpy().tolist()]))
+        states = []
+        for row in df.itertuples():
+            binary = [0, 0, 0, 0, 0, 0, 0, 0]
+            for i in range(len(row)):
+                if row[i]!='':
+                    binary[7 - i] = 1
+            integer = int("".join(str(i) for i in binary),2)
+            states.append(integer)
+            
+        # Running program
+        self.counter_do(states, hold_times, port=port)
         
+    def counter_do(self, data, delays, ctr=0, port=0, line='0:7', rate=1000000, initial_delay=0.001):
+        '''
+            Primarily a helper function internal to the class, helps run the counter and digital out, but can also be called from outside the class if needed.
+        '''
         # prechecks to ensure lengths are okay
         if len(data) != len(delays):
             raise Exception('data length does not match lengths provided!')
@@ -99,24 +129,6 @@ class Counter:
 
         except DaqError as e:
             raise RuntimeError(f'An error occured while running: {e}')
-
-    def run_from_csv(self, name, port=0):
-        try:
-            import pandas as pd
-            df = pd.read_csv(name, usecols=[0, 1, 2, 3, 4, 5, 6, 7, 8], skiprows=[1])
-        except:
-            raise Exception('file unreachable!')
-        hold_times = list(map(float,[i[0] for i in df.iloc[:, [8]].to_numpy().tolist()]))
-        states = []
-        for row in df.itertuples():
-            binary = [0, 0, 0, 0, 0, 0, 0, 0]
-            for i in range(len(row)):
-                if row[i]!='':
-                    binary[7 - i] = 1
-            integer = int("".join(str(i) for i in binary),2)
-            states.append(integer)
-        #Running program
-        self.counter_do(states, hold_times, port=port)
 
     def uniform_to_lowhigh(self, arr):
         lows = []
