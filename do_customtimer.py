@@ -1,10 +1,9 @@
-from interface.counter import *
+from interface.counter import Counter
 
-data = [2,1,2,1,2,1]
+c = Counter({'camera':2,'aom':0,'count':1,'yeetmobile':3,'gate':4})
 
-samps=len(data)
+data = [2, 1, 2, 1, 2, 1]
 
-#Must add extra delay to the start as that is considered the start before any data generation.
-delays=[0.1, 0.2, 0.3, 0.2, 0.1, 0.2]
+instructions = ['camera+aom',4,'count+yeetmobile',5,'gate',2]
 
-counter_do(data, delays)
+c.run(instructions)
