@@ -9,7 +9,7 @@ class Counter:
         # bindings should be a dictionary like {'Camera':2, 'AOM':3}
         self.bindings = bindings
     
-    def run(self, command):
+    def run(self, command, port=0):
         # command in format ['Camera+AOM','0.3','Counter+Camera','0.2']
         if len(command) % 2 != 0:
             raise Exception('Something is wrong! You should provide a time delta for each state.')
@@ -25,8 +25,19 @@ class Counter:
         states_translated = []
         for state in states:
             nested = state.split('+')
-            port_strings = [self.bindings[n] for n in nested]
-            states_translated.append(port_strings)
+            try:
+                port_strings = [self.bindings[n] for n in nested]
+            except:
+                raise Exception('missing binding or inaccurate input!')
+            binary = [0, 0, 0, 0, 0, 0, 0, 0]
+            for i in port_strings:
+                if i != 0:
+                    binary[8 - i] = 1 
+            integer = int("".join(str(i) for i in binary),2)
+            states_translated.append(integer)
+        
+        #Running program
+        self.counter_do(states_translated, times, port=port)
 
     def counter_do(self, data, delays, ctr=0, port=0, line='0:7', rate=1000000, initial_delay=0.001):
         
