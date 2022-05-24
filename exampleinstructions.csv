@@ -1,0 +1,6 @@
+Port 0,Port 1,Port 2,Port 3,Port 4,Port 5,Port 6,Port 7,Hold Time,,Notes
+Counter,AWG,AOM,Shutter,Camera,SPCP,RF-AMP,Gate,----,,"This row is purely for user readability, will be ignored."
+on,,on,on,on,on,,on,0.4,,"(it doesn't have to be ""on"", putting anything in a box will turn it on. Empty boxes will be off. the text can be chosen for readability)"
+,on,,on,,,on,,0.5,,
+on,on,on,,,,,on,0.3,,
+,,,on,on,on,,,0.2,,Nothing should be put in rows underneath the last row however. Notes can be written to the side as shown.
