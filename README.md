@@ -1,5 +1,5 @@
 # nidaqinterface
-Interfacing with NIDAQmx Python For Digital Ouput &amp; Counter
+Interfacing with NIDAQmx Python For Digital Output &amp; Counter
 
 Hello! There are currently two ways to interface  with the counter powered digital output.
 Firstly, the user can set bindings between names of devices and port numbers as a python dictionary,
