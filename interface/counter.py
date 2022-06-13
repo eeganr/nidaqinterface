@@ -1,7 +1,6 @@
-import nidaqmx
+import nidaqmx, nidaqmx.stream_writers, nidaqmx.stream_readers
 import numpy as np
-from nidaqmx.constants import AcquisitionType
-import nidaqmx.stream_writers
+from nidaqmx.constants import AcquisitionType, Edge, READ_ALL_AVAILABLE
 from nidaqmx.errors import DaqError
 
 class Counter:
@@ -102,8 +101,8 @@ class Counter:
         
         output.timing.cfg_samp_clk_timing(
             rate=rate,
-            source='Ctr0InternalOutput',
-            sample_mode=nidaqmx.constants.AcquisitionType.FINITE,
+            source=f'Ctr{ctr}InternalOutput',
+            sample_mode=AcquisitionType.FINITE,
             samps_per_chan=len(low)
         )
 
@@ -115,10 +114,9 @@ class Counter:
             streamwriter = nidaqmx.stream_writers.DigitalSingleChannelWriter(output.out_stream)
             streamwriter.write_many_sample_port_byte(data)
 
-            counter.start()
             output.start()
-
-            output.wait_until_done(timeout=(sum(low)+sum(high)+initial_delay)*2)
+            counter.start()
+            
             counter.wait_until_done(timeout=(sum(low)+sum(high)+initial_delay)*2)
 
             output.stop()
@@ -130,7 +128,52 @@ class Counter:
         except DaqError as e:
             raise RuntimeError(f'An error occured while running: {e}')
 
+    def gen_and_collect(self, delays, ctr=0, initial_delay=0.001):
+        '''
+        Testing function that generates and then collects a sample count.
+        '''
+        # Data Manipulation
+        low, high = self.uniform_to_lowhigh(delays)
+        low = [initial_delay] + low
+        high[-1] += low[-1]
+        low = low[:-1]
+        testlow = np.array(low)
+        testhigh = np.array(high)
+
+        #Defining output counter
+        output_counter = nidaqmx.Task()
+        output_counter.co_channels.add_co_pulse_chan_time("Dev1/ctr"+str(ctr))
+        output_counter.timing.cfg_implicit_timing(
+            samps_per_chan=len(low),
+            sample_mode=AcquisitionType.FINITE
+        )
+
+        # Defining counter counter
+        count_edge = nidaqmx.Task()
+        ch = count_edge.ci_channels.add_ci_count_edges_chan(
+            counter='Dev1/ctr1',
+            edge=Edge.RISING
+        )
+
+        sw = nidaqmx.stream_writers.CounterWriter(output_counter.out_stream)
+        sw.write_many_sample_pulse_time(testhigh, testlow)
+
+        count_edge.start()
+        output_counter.start()
+        
+        output_counter.wait_until_done(timeout=(sum(low)+sum(high)+initial_delay)*2)
+        print(count_edge.read())
+        count_edge.stop()
+        count_edge.close()
+
+        output_counter.stop()
+        output_counter.close()
+        
+
     def uniform_to_lowhigh(self, arr):
+        '''
+        Array Manipulation helper function
+        '''
         lows = []
         highs = []
         for val in arr:
@@ -140,5 +183,8 @@ class Counter:
 
 
     def delay_to_lowhigh(self, delay, samps):
+        '''
+        Array Manipulation helper function
+        '''
         vals = [delay/2]*samps
         return vals, vals
