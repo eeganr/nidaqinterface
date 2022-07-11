@@ -2,6 +2,8 @@ import nidaqmx, nidaqmx.stream_writers, nidaqmx.stream_readers
 import numpy as np
 from nidaqmx.constants import AcquisitionType, Edge, READ_ALL_AVAILABLE
 from nidaqmx.errors import DaqError
+import nidaqmx.task
+from nidaqmx.constants import Level, TriggerType
 
 class Counter:
     def __init__(self, bindings):
@@ -144,8 +146,7 @@ class Counter:
         output_counter = nidaqmx.Task()
         output_counter.co_channels.add_co_pulse_chan_time("Dev1/ctr"+str(ctr))
         output_counter.timing.cfg_implicit_timing(
-            samps_per_chan=len(low),
-            sample_mode=AcquisitionType.FINITE
+            samps_per_chan=len(low)
         )
 
         # Defining counter counter
@@ -154,20 +155,41 @@ class Counter:
             counter='Dev1/ctr1',
             edge=Edge.RISING
         )
+        count_edge.triggers.pause_trigger.dig_lvl_src = "Ctr3InternalOutput"
+        count_edge.triggers.pause_trigger.dig_lvl_when = Level.HIGH
+        count_edge.triggers.pause_trigger.trig_type = TriggerType.DIGITAL_LEVEL
+
+        # Defining gate counter
+        gate = nidaqmx.Task()
+        gate.co_channels.add_co_pulse_chan_time("Dev1/ctr3")
+        gate.timing.cfg_implicit_timing(
+            samps_per_chan=len(low)
+        )
+        
+        
 
         sw = nidaqmx.stream_writers.CounterWriter(output_counter.out_stream)
         sw.write_many_sample_pulse_time(testhigh, testlow)
+        
+        sw2 = nidaqmx.stream_writers.CounterWriter(gate.out_stream)
+        sw2.write_many_sample_pulse_time(np.array([0.2, 0.1]), np.array([0.001, 0.001]))
 
+        
+        #gate.start()
         count_edge.start()
         output_counter.start()
-        
+
         output_counter.wait_until_done(timeout=(sum(low)+sum(high)+initial_delay)*2)
+        gate.wait_until_done(timeout=20)
         print(count_edge.read())
         count_edge.stop()
         count_edge.close()
 
         output_counter.stop()
         output_counter.close()
+
+        gate.stop()
+        gate.close()
         
 
     def uniform_to_lowhigh(self, arr):

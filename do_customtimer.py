@@ -10,6 +10,6 @@ instructions = ['camera+aom',1,'count+yeetmobile',2,'gate',1]
 
 #c.run_from_csv('exampleinstructions.csv')
 
-times = [0.5,0.2,0.3,0.2,0.1]
+times = [0.5,0.2,0.3,0.2,0.1,0.6]
 
 c.gen_and_collect(times)
